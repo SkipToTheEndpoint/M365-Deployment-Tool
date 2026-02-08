@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M365 Office Deployment Helper</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-content">
+        <div class="header-branding">
+          <div class="logo-container">
+            <div class="neon-box box-green"></div>
+            <div class="neon-box box-blue"></div>
+          </div>
+          <div class="header-text">
+            <h1 class="app-title">Microsoft 365 Apps Deployment Helper</h1>
+            <p class="app-subtitle">Create deployment-ready M365 packages with ease</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="main-content">
+      <!-- Left Panel: Configuration -->
+      <div class="panel config-panel">
+        <div class="panel-header">
+          <h2>Configuration</h2>
+        </div>
+
+        <div class="panel-body">
+          <div class="config-scroll">
+            <!-- XML File Selection -->
+            <div class="form-group">
+              <label for="configXmlPath" class="form-label">Configuration XML</label>
+              <div class="path-input-wrapper">
+                <input type="text" id="configXmlPath" class="form-input" placeholder="No file selected">
+                <button class="btn-icon" id="browseXml" title="Browse">📁</button>
+              </div>
+              <small class="form-help">Select your M365 Apps configuration XML file. You can generate one at
+                https://config.office.com/</small>
+            </div>
+
+            <!-- Path Inputs -->
+            <div class="form-group">
+              <label for="outputPath" class="form-label">Output Path</label>
+              <div class="path-input-wrapper">
+                <input type="text" id="outputPath" value=".\Output" class="form-input">
+                <button class="btn-icon" id="browseOutput" title="Browse">📁</button>
+              </div>
+              <small class="form-help">Where to save the project files</small>
+            </div>
+
+            <div class="form-group">
+              <label for="logName" class="form-label">Log File</label>
+              <input type="text" id="logName" value=".\Invoke-M365AppsHelper.log" class="form-input">
+              <small class="form-help">Script execution log path</small>
+            </div>
+
+            <!-- Toggles -->
+            <div class="toggles-section">
+              <h3 class="toggles-title">Options</h3>
+
+              <div class="toggle-group">
+                <label class="toggle-label">
+                  <input type="checkbox" id="onlineMode" class="toggle-input">
+                  <span class="toggle-switch"></span>
+                  <span class="toggle-text">Create package without downloading Office data files</span>
+                </label>
+                <small class="toggle-help">Creates a lightweight package with no Office data files (~200MB setup.exe + configs). If this option is unchecked, the Office data files are downloaded into the package (~3-4GB)</small>
+              </div>
+
+              <div class="toggle-group">
+                <label class="toggle-label">
+                  <input type="checkbox" id="createIntuneWin" class="toggle-input" checked>
+                  <span class="toggle-switch"></span>
+                  <span class="toggle-text">Create .intunewin</span>
+                </label>
+                <small class="toggle-help">Downloads the Win32 Content Prep Tool and builds a .intunewin using
+                  setup.exe. Not available with Online Mode.</small>
+              </div>
+            </div>
+
+            <!-- Advanced Settings -->
+            <details class="advanced-section">
+              <summary class="advanced-title">Advanced Settings</summary>
+              <div class="advanced-content">
+                <div class="toggle-group">
+                  <label class="toggle-label">
+                    <input type="checkbox" id="pmpcCustomApp" class="toggle-input">
+                    <span class="toggle-switch"></span>
+                    <span class="toggle-text">Generate Patch My PC Custom App</span>
+                  </label>
+                  <small class="toggle-help">Create a package for a Patch My PC Cloud Custom App</small>
+
+                  <!-- Child option: Only visible when PMPCCustomApp is checked -->
+                  <div id="noZipContainer" class="toggle-group toggle-child" style="display: none;">
+                    <label class="toggle-label">
+                      <input type="checkbox" id="noZip" class="toggle-input">
+                      <span class="toggle-switch"></span>
+                      <span class="toggle-text">Do not compress Office data files</span>
+                    </label>
+                    <small class="toggle-help">Skip ZIP compression of Office data files</small>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="setupUrl" class="form-label">M365 Apps Setup.exe URL</label>
+                  <input type="text" id="setupUrl" value="https://officecdn.microsoft.com/pr/wsus/setup.exe"
+                    class="form-input form-input-url">
+                  <small class="form-help">URL to download Office setup executable</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="officeIconUrl" class="form-label">M365 Apps Icon URL</label>
+                  <input type="text" id="officeIconUrl" value="https://www.svgrepo.com/show/452062/microsoft.svg"
+                    class="form-input form-input-url">
+                  <small class="form-help">URL to download Office app icon</small>
+                </div>
+
+                <!-- API Configuration Section -->
+                <div class="api-config-section">
+                  <div class="api-config-title">API Configuration</div>
+
+                  <div class="toggle-group">
+                    <label class="toggle-label">
+                      <input type="checkbox" id="skipAPICheck" class="toggle-input">
+                      <span class="toggle-switch"></span>
+                      <span class="toggle-text">Skip M365 Version Validation Check</span>
+                    </label>
+                    <small class="toggle-help">Skip API version validation. Version can be extracted from downloaded files
+                      or must be pre-specified in XML</small>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="officeVersionUrl" class="form-label">Office Version API URL</label>
+                    <input type="text" id="officeVersionUrl"
+                      value="https://clients.config.office.net/releases/v1.0/OfficeReleases"
+                      class="form-input form-input-url">
+                  </div>
+
+                  <div class="form-group">
+                    <label for="apiRetryDelay" class="form-label">API Retry Delay (seconds)</label>
+                    <input type="number" id="apiRetryDelay" value="3" min="1" max="30"
+                      class="form-input form-input-number">
+                  </div>
+
+                  <div class="form-group">
+                    <label for="apiMaxAttempts" class="form-label">API Max Attempts</label>
+                    <input type="number" id="apiMaxAttempts" value="10" min="1" max="20"
+                      class="form-input form-input-number">
+                  </div>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="button-group">
+            <button id="runBtn" class="btn btn-primary btn-large">
+              <span class="btn-icon-text">▶</span> Start Packaging
+            </button>
+            <button id="stopBtn" class="btn btn-danger" style="display: none;">
+              <span class="btn-icon-text">⏹</span> Stop
+            </button>
+            <button id="resetBtn" class="btn btn-secondary">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Middle Panel removed: Package Details no longer shown -->
+
+      <!-- Right Panel: Execution Log -->
+      <div class="panel output-panel">
+        <div class="panel-header">
+          <h2>Execution Log</h2>
+          <div class="header-actions">
+            <button id="clearLogBtn" class="btn-icon-small" title="Clear log">🗑</button>
+            <button id="copyLogBtn" class="btn-icon-small" title="Copy log">📋</button>
+          </div>
+        </div>
+
+        <div class="panel-body">
+          <!-- Status Indicator -->
+          <div id="statusIndicator" class="status-indicator status-idle">
+            <span class="status-dot"></span>
+            <span class="status-text">Ready</span>
+          </div>
+
+          <!-- Progress Bar -->
+          <div id="progressContainer" class="progress-container hidden">
+            <div class="progress-bar">
+              <div id="progressFill" class="progress-fill"></div>
+            </div>
+            <div class="progress-text">
+              <span id="progressPercent">0%</span>
+              <span id="progressTime">Calculating...</span>
+            </div>
+          </div>
+
+          <!-- Execution Log Output -->
+          <div id="logOutput" class="log-output">
+            <div class="log-entry log-idle">
+              <span class="log-icon">●</span>
+              <span class="log-message">Waiting for input...</span>
+            </div>
+          </div>
+
+          <!-- Result Panel -->
+          <div id="resultPanel" class="result-panel hidden">
+            <div id="resultContent"></div>
+            <div class="result-actions">
+              <button id="openOutputBtn" class="btn btn-sm">Open Output Folder</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "m365-apps-helper",
+  "version": "1.0.0",
+  "description": "Modern Electron UI for M365 Office deployment",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^28.1.0",
+    "electron-is-dev": "^2.0.0"
+  }
+}
