@@ -26,6 +26,12 @@ To use the optional GUI:
 
 This will create a lightweight Microsoft 365 Apps deployment package.
 
+### Online Mode vs Full Download
+
+- `-OnlineMode` creates a lightweight stub package (just `setup.exe` and metadata). The Office binaries are downloaded during install.
+- If `-OnlineMode` is not passed, the script downloads **all Office data files** into the package. This can be preferred for fully offline installs, but results in **very large downloads** (multi-GB).
+- For PMPC custom apps without `-OnlineMode`, you can use `-Compress` to zip Office data files and the script will also generate a **PreScript** to extract them during install.
+
 > ⚠️ **Note:** The sample XML is for example purposes only.  
 > You should generate your own configuration at [https://config.office.com](https://config.office.com) and export the XML.
 
@@ -79,6 +85,8 @@ You can use your exported XML file from [config.office.com](https://config.offic
 
 The package is structured for seamless deployment via Microsoft Intune.
 
+When generating Win32 packages (non-PMPC custom apps), the tool also produces a **Win32 app details** `.txt` file that tells you exactly what to fill in during Intune app creation (install/uninstall commands, detection, and metadata). The Microsoft logo file is downloaded automatically for use as the app icon.
+
 ### ✅ **Patch My PC Custom App**
 
 If you're a PMPC Cloud customer, add the `-PMPCCustomApp` parameter:
@@ -92,6 +100,26 @@ This will generate all files and metadata required to upload a **custom Office i
 - Custom app manifest
 - Office source content
 - Detection script
+- Optional compressed Office content and **PreScript** when `-Compress` is used without `-OnlineMode`
+
+---
+
+## ⚙️ Parameters (Detailed)
+
+- **ConfigXML**: Optional. Path to the Office configuration XML. If omitted, the script auto-detects a single XML in the script folder.
+- **BasePath**: Optional. Default: `$env:APPDATA\M365AppsHelper`. Root for output folders (`Packages`, `Downloads`, `Logs`).
+- **SetupUrl**: Optional. Default: `https://officecdn.microsoft.com/pr/wsus/setup.exe`.
+- **OfficeVersionUrl**: Optional. Default: `https://clients.config.office.net/releases/v1.0/OfficeReleases`.
+- **OfficeIconUrl**: Optional. Default: `https://www.svgrepo.com/show/452062/microsoft.svg` (downloaded as `Microsoft.png`).
+- **LogName**: Optional. Default: `Invoke-M365AppsHelper.log`. Can be a file name or a full path.
+- **Win32ContentPrepToolUrl**: Optional. Default: `https://raw.githubusercontent.com/microsoft/Microsoft-Win32-Content-Prep-Tool/master/IntuneWinAppUtil.exe`.
+- **CreateIntuneWin**: Switch. Generate a `.intunewin` package (non-PMPC custom app).
+- **NoZip**: Switch. Skip creating `Office.zip` when Office content is downloaded.
+- **OnlineMode**: Switch. Build a stub package only (no Office binaries). Without this switch, full Office data files are downloaded (large).
+- **SkipAPICheck**: Switch. Skip Office API validation (only works if a version is set in the XML).
+- **PMPCCustomApp**: Switch. Generate PMPC custom app output instead of standard Win32 output.
+- **ApiRetryDelaySeconds**: Optional. Default: `3`. Delay in seconds between API retries. Range: `1-30`.
+- **ApiMaxExtendedAttempts**: Optional. Default: `10`. Maximum API retry attempts. Range: `1-20`.
 
 ---
 
