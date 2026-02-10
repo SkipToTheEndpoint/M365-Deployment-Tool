@@ -79,9 +79,11 @@ You can use your exported XML file from [config.office.com](https://config.offic
 - Automatically generate a ready-to-upload `.intunewin` package
 - Includes:
   - `setup.exe`
-  - Your XML
-  - A generated detection script
+  - install.xml and uninstall.xml generated from your provided xml
   - Optional full Office content (if not using `-OnlineMode`)
+- A detection script
+- Microsoft Logo
+- Details txt file containing all the information required to populate the Win32 app steps
 
 The package is structured for seamless deployment via Microsoft Intune.
 
@@ -97,9 +99,7 @@ If you're a PMPC Cloud customer, add the `-PMPCCustomApp` parameter:
 
 This will generate all files and metadata required to upload a **custom Office installer** to the Patch My PC Cloud portal, including:
 
-- Custom app manifest
 - Office source content
-- Detection script
 - Optional compressed Office content and **PreScript** when `-Compress` is used without `-OnlineMode`
 
 ---
