@@ -1,9 +1,10 @@
 ﻿<#
 .Synopsis
 Created on:   07/09/2025
-Updated on:   25/01/2025
+Updated on:   09/02/2025
 Created by:   Ben Whitmore@PatchMyPC
 Filename:     Invoke-M365AppsHelper.ps1
+Version:      1.0.0
 
 The script dynamically parses Office configuration XML files, downloads the required setup files, and creates deployment-ready packages.
 
