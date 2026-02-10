@@ -105,20 +105,133 @@ This will generate all files and metadata required to create a **Custom App** in
 
 ## ⚙️ Parameters (Detailed)
 
-- **ConfigXML**: Optional. Path to the Office configuration XML. If omitted, the script auto-detects a single XML in the script folder.
-- **BasePath**: Optional. Default: `$env:APPDATA\M365AppsHelper`. Root for output folders (`Packages`, `Downloads`, `Logs`).
-- **SetupUrl**: Optional. Default: `https://officecdn.microsoft.com/pr/wsus/setup.exe`.
-- **OfficeVersionUrl**: Optional. Default: `https://clients.config.office.net/releases/v1.0/OfficeReleases`.
-- **OfficeIconUrl**: Optional. Default: `https://www.svgrepo.com/show/452062/microsoft.svg` (downloaded as `Microsoft.png`).
-- **LogName**: Optional. Default: `Invoke-M365AppsHelper.log`. Can be a file name or a full path.
-- **Win32ContentPrepToolUrl**: Optional. Default: `https://raw.githubusercontent.com/microsoft/Microsoft-Win32-Content-Prep-Tool/master/IntuneWinAppUtil.exe`.
-- **CreateIntuneWin**: Switch. Generate a `.intunewin` package (non-PMPC custom app).
-- **NoZip**: Switch. Skip creating `Office.zip` when Office content is downloaded.
-- **OnlineMode**: Switch. Build a stub package only (no Office binaries). Without this switch, full Office data files are downloaded (large).
-- **SkipAPICheck**: Switch. Skip Office API validation (only works if a version is set in the XML).
-- **PMPCCustomApp**: Switch. Generate PMPC custom app output instead of standard Win32 output.
-- **ApiRetryDelaySeconds**: Optional. Default: `3`. Delay in seconds between API retries. Range: `1-30`.
-- **ApiMaxExtendedAttempts**: Optional. Default: `10`. Maximum API retry attempts. Range: `1-20`.
+**ConfigXML**
+Path to the Office configuration XML. If omitted, the script auto-detects a single XML in the script folder.
+```
+Type: String
+Required: False
+Default: Auto-detect single XML
+Incompatible with: None
+```
+
+**BasePath**
+Root path for output folders (`Packages`, `Downloads`, `Logs`).
+```
+Type: String
+Required: False
+Default: $env:APPDATA\M365AppsHelper
+Incompatible with: None
+```
+
+**SetupUrl**
+Office setup executable download URL.
+```
+Type: String
+Required: False
+Default: https://officecdn.microsoft.com/pr/wsus/setup.exe
+Incompatible with: None
+```
+
+**OfficeVersionUrl**
+Office version API endpoint used for validation.
+```
+Type: String
+Required: False
+Default: https://clients.config.office.net/releases/v1.0/OfficeReleases
+Incompatible with: None
+```
+
+**OfficeIconUrl**
+Icon download URL (saved as `Microsoft.png`).
+```
+Type: String
+Required: False
+Default: https://www.svgrepo.com/show/452062/microsoft.svg
+Incompatible with: None
+```
+
+**LogName**
+Log file name or full path.
+```
+Type: String
+Required: False
+Default: Invoke-M365AppsHelper.log
+Incompatible with: None
+```
+
+**Win32ContentPrepToolUrl**
+Win32 Content Prep Tool URL (`IntuneWinAppUtil.exe`).
+```
+Type: String
+Required: False
+Default: https://raw.githubusercontent.com/microsoft/Microsoft-Win32-Content-Prep-Tool/master/IntuneWinAppUtil.exe
+Incompatible with: None
+```
+
+**CreateIntuneWin**
+Generate a `.intunewin` package (non-PMPC custom app).
+```
+Type: Switch
+Required: False
+Default: False
+Incompatible with: NoZip, PMPCCustomApp
+```
+
+**NoZip**
+Skip creating `Office.zip` when Office content is downloaded.
+```
+Type: Switch
+Required: False
+Default: False
+Incompatible with: CreateIntuneWin
+```
+
+**OnlineMode**
+Build a stub package only (no Office binaries). Without this switch, full Office data files are downloaded (large).
+```
+Type: Switch
+Required: False
+Default: False
+Incompatible with: None
+```
+
+**SkipAPICheck**
+Skip Office API validation (only works if a version is set in the XML).
+```
+Type: Switch
+Required: False
+Default: False
+Incompatible with: None
+```
+
+**PMPCCustomApp**
+Generate PMPC custom app output instead of standard Win32 output.
+```
+Type: Switch
+Required: False
+Default: False
+Incompatible with: CreateIntuneWin
+```
+
+**ApiRetryDelaySeconds**
+Delay in seconds between API retries.
+```
+Type: Integer
+Required: False
+Default: 3
+Range: 1-30
+Incompatible with: None
+```
+
+**ApiMaxExtendedAttempts**
+Maximum API retry attempts.
+```
+Type: Integer
+Required: False
+Default: 10
+Range: 1-20
+Incompatible with: None
+```
 
 ---
 
