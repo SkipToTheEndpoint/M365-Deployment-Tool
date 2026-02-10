@@ -6,10 +6,10 @@ A simple PowerShell-based tool with optional GUI to build Microsoft 365 deployme
 
 ## 🧰 Requirements
 
-- Windows 10 or 11
 - PowerShell 5.1 or later
 
 To use the optional GUI:
+
 - Node.js LTS from https://nodejs.org
 
 ---
@@ -68,7 +68,7 @@ The GUI will launch. This may take a minute the first time.
 
 ---
 
-## 💼 Intune + Patch My PC Support
+## 🤷 Who is this tool for?
 
 This tool is ideal for:
 
@@ -81,13 +81,9 @@ You can use your exported XML file from [config.office.com](https://config.offic
   - `setup.exe`
   - install.xml and uninstall.xml generated from your provided xml
   - Optional full Office content (if not using `-OnlineMode`)
-- A detection script
+- Detection Script (Leveraging DisplayName and DisplayVersion)
 - Microsoft Logo
-- Details txt file containing all the information required to populate the Win32 app steps
-
-The package is structured for seamless deployment via Microsoft Intune.
-
-When generating Win32 packages (non-PMPC custom apps), the tool also produces a **Win32 app details** `.txt` file that tells you exactly what to fill in during Intune app creation (install/uninstall commands, detection, and metadata). The Microsoft logo file is downloaded automatically for use as the app icon.
+- Win32 app details.txt file that tells you exactly what to fill in during Intune app creation (install/uninstall commands, detection, and metadata)
 
 ### ✅ **Patch My PC Custom App**
 
@@ -97,10 +93,13 @@ If you're a PMPC Cloud customer, add the `-PMPCCustomApp` parameter:
 .\Invoke-M365AppsHelper.ps1 -ConfigXML .\your.xml -PMPCCustomApp
 ```
 
-This will generate all files and metadata required to upload a **custom Office installer** to the Patch My PC Cloud portal, including:
+This will generate all files and metadata required to create a **Custom App** in the Patch My PC Cloud portal, including:
 
-- Office source content
-- Optional compressed Office content and **PreScript** when `-Compress` is used without `-OnlineMode`
+- Includes:
+  - `setup.exe`
+  - install.xml and uninstall.xml generated from your provided xml
+  - Optional full Office content (if not using `-OnlineMode`)
+  - Optional compressed Office content and **PreScript** when `-Compress` is used without `-OnlineMode`
 
 ---
 
