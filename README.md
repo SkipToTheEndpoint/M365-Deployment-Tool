@@ -30,7 +30,7 @@ This will create a lightweight Microsoft 365 Apps deployment package.
 
 - `-OnlineMode` creates a lightweight stub package (just `setup.exe` and metadata). The Office binaries are downloaded during install.
 - If `-OnlineMode` is not passed, the script downloads **all Office data files** into the package. This can be preferred for fully offline installs, but results in **very large downloads** (multi-GB).
-- For PMPC custom apps without `-OnlineMode`, you can use `-Compress` to zip Office data files and the script will also generate a **PreScript** to extract them during install.
+- For PMPC custom apps without `-OnlineMode`, Office data files will be compressed automatically and the script will also generate a **PreScript** to extract them during install. Use the `-OnlineMode` parameter if you do not want to compress the office data files.
 
 > ⚠️ **Note:** The sample XML is for example purposes only.  
 > You should generate your own configuration at [https://config.office.com](https://config.office.com) and export the XML.
