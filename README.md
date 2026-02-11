@@ -102,7 +102,7 @@ This will generate all files and metadata required to create a **Custom App** in
   - Compressed Office content and **PreScript** (if not using `-OnlineMode`). Use the `-NoZip` parameter if you do not want to compress the office data files.
 ---
 
-## ⚙️ Parameters (Detailed)
+## ⚙️ Parameters
 
 **ConfigXML**
 Path to the Office configuration XML. If omitted, the script auto-detects a single XML in the script folder.
