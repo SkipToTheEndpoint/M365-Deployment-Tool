@@ -1,10 +1,10 @@
 ﻿<#
 .Synopsis
 Created on:   07/09/2025
-Updated on:   2/02/2025
+Updated on:   22/02/2025
 Created by:   Ben Whitmore@PatchMyPC
 Filename:     Invoke-M365AppsHelper.ps1
-Version:      1.0.1
+Version:      1.0.2
 
 The script dynamically parses Office configuration XML files, downloads the required setup files, and creates deployment-ready packages.
 
@@ -31,7 +31,7 @@ The script implements an intelligent retry mechanism because Microsoft's Office 
 - Benefits from multiple attempts to ensure complete version information
 
 .NOTES
-PowerShell 5.1 or later is required to run this script.
+PowerShell 7 or later is required to run this script.
 Requires internet connectivity for downloading Office setup files and version validation.
 Version validation can be bypassed with -SkipAPICheck if version is pre-specified.
 
@@ -143,7 +143,7 @@ param(
     [ValidatePattern('^https?://.+')]
     [string]$Win32ContentPrepToolUrl = "https://raw.githubusercontent.com/microsoft/Microsoft-Win32-Content-Prep-Tool/master/IntuneWinAppUtil.exe",
     [switch]$CreateIntuneWin,
-    [switch]$NoZip,
+    [switch]$NoZip = $true,
     [switch]$OnlineMode,
     [switch]$SkipAPICheck,
     [switch]$PMPCCustomApp,
@@ -299,13 +299,14 @@ if ($CreateIntuneWin -and $PMPCCustomApp) {
 }
 
 if ($CreateIntuneWin -and $NoZip) {
-
-    $script:LogPath = $LogName
-    $logID = "ParameterValidation"
-    
-    Write-LogHost "Error: CreateIntuneWin cannot be used with NoZip parameter." -ForegroundColor Red -Severity 3 -Component $logID
-    Write-LogHost "Note: Creating an Intune Win32 package requires a zip archive of the Office content." -ForegroundColor Yellow -Severity 2 -Component $logID
-    exit 1
+    # Only error if PMPCCustomApp is also passed
+    if ($PMPCCustomApp) {
+        $script:LogPath = $LogName
+        $logID = "ParameterValidation"
+        Write-LogHost "Error: CreateIntuneWin cannot be used with NoZip parameter when PMPCCustomApp is also used." -ForegroundColor Red -Severity 3 -Component $logID
+        Write-LogHost "Note: Creating an Intune Win32 package requires a zip archive of the Office content." -ForegroundColor Yellow -Severity 2 -Component $logID
+        exit 1
+    }
 }
 
 if ($OnlineMode -and $SkipAPICheck) {
@@ -2709,11 +2710,14 @@ function Invoke-Main {
     }
 
     # Create the properly named folder with build version and determine mode suffix based on compression
-    $modeSuffix = if ($NoZip) { 
-        "OfflineMode" 
-    }
-    else { 
-        "OfflineModeCompressed"
+    # Only use NoZip if PMPCCustomApp is also passed
+    if ($PMPCCustomApp) {
+        # Compress by default unless NoZip is passed
+        $modeSuffix = if ($NoZip) { "OfflineMode" } else { "OfflineModeCompressed" }
+    } else {
+        # Never do zip compression if not PMPCCustomApp
+        $modeSuffix = "OfflineMode"
+        $NoZip = $true
     }
 
     # Get build version for folder name
@@ -2980,25 +2984,34 @@ function Invoke-Main {
         }
         
         # Show the actual Office folder structure
+
         if (Test-Path $outputOfficeDir) {
             $officeContents = Get-ChildItem -Path $outputOfficeDir -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 15
             $officeFilesList = @()
-
             foreach ($file in $officeContents) {
                 $relativePath = $file.FullName.Replace($sessionPath, '').TrimStart('\')
                 $officeFilesList += "    $relativePath"
             }
             $officeContentsCompressed = ($officeFilesList | ForEach-Object { $_.Trim() }) -join ';'
             Write-Log ("Office Folder Contents: {0}" -f $officeContentsCompressed) -Component $LogId
-            
             # Display contents to console with formatting
             foreach ($file in $officeContents) {
                 $relativePath = $file.FullName.Replace($sessionPath, '').TrimStart('\')
                 Write-Host "    $relativePath" -ForegroundColor Cyan
             }
-        }
-        else {
+        } else {
             Write-LogHost ("Office folder not found in {0}" -f $outputOfficeDir) -ForegroundColor Cyan -Severity 2 -Component $LogId
+        }
+
+        # Cleanup Office data files from downloads folder after packaging
+        $sourceOfficeDir = Join-Path $downloadDirectory "Office"
+        if (Test-Path $sourceOfficeDir) {
+            try {
+                Remove-Item -Path $sourceOfficeDir -Recurse -Force -ErrorAction Stop
+                Write-LogHost ("Cleaned up Office data files from downloads folder: {0}" -f $sourceOfficeDir) -ForegroundColor Yellow -Component $LogId
+            } catch {
+                Write-LogHost ("Failed to clean up Office data files from downloads folder: {0}" -f $_.Exception.Message) -ForegroundColor Red -Severity 2 -Component $LogId
+            }
         }
 
         # Generate deployment information based on PMPCCustomApp flag
