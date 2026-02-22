@@ -6,7 +6,7 @@ A simple PowerShell-based tool with optional GUI to build Microsoft 365 deployme
 
 ## Requirements
 
-- PowerShell 5.1 or later
+- PowerShell 7+
 
 To use the optional GUI:
 
