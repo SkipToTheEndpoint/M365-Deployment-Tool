@@ -239,7 +239,7 @@ Incompatible with: None
 - **Created by**: Ben Whitmore @ Patch My PC  
 - **Filename**: `Invoke-M365AppsHelper.ps1`  
 - **Created on**: 07/09/2025  
-- **Updated on**: 25/01/2025
+- **Updated on**: 22/02/2025
 
 This script automates the process of creating Microsoft 365 Office deployment packages by:
 
