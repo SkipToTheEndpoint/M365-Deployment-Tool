@@ -4,17 +4,17 @@ A simple PowerShell-based tool with optional GUI to build Microsoft 365 deployme
 
 ---
 
-## 🧰 Requirements
+## Requirements
 
 - PowerShell 5.1 or later
 
 To use the optional GUI:
 
-- Node.js LTS from https://nodejs.org
+- Node.js from https://nodejs.org
 
 ---
 
-## ▶️ Option 1: Use the PowerShell Script
+## Option 1: Use the PowerShell Script
 
 1. Open a PowerShell window.
 2. Navigate to the folder.
@@ -53,18 +53,19 @@ This will create a lightweight Microsoft 365 Apps deployment package.
 
 ---
 
-## 🖥️ Option 2: Use the GUI (Electron)
+## Option 2: Use the GUI (Electron)
 
 1. Install [Node.js LTS](https://nodejs.org)
-2. Open a terminal in the folder.
-3. Run:
+2. Download the latest release zip and unpack to a folder.
+3. Open PowerShell, change directory to the same folder.
+4. Run:
 
 ```bash
 npm install
 npm start
 ```
 
-The GUI will launch. This may take a minute the first time.
+The GUI will launch. This may take a minute the first time as node modules are downloaded.
 
 ---
 
@@ -87,7 +88,7 @@ You can use your exported XML file from [config.office.com](https://config.offic
 
 ### ✅ **Patch My PC Custom App**
 
-If you're a PMPC Cloud customer, add the `-PMPCCustomApp` parameter:
+If you're a Patch My PC customer, add the `-PMPCCustomApp` parameter:
 
 ```powershell
 .\Invoke-M365AppsHelper.ps1 -ConfigXML .\your.xml -PMPCCustomApp
