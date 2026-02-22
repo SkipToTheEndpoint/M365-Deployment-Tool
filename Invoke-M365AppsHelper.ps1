@@ -1,10 +1,10 @@
 ﻿<#
 .Synopsis
 Created on:   07/09/2025
-Updated on:   09/02/2025
+Updated on:   2/02/2025
 Created by:   Ben Whitmore@PatchMyPC
 Filename:     Invoke-M365AppsHelper.ps1
-Version:      1.0.0
+Version:      1.0.1
 
 The script dynamically parses Office configuration XML files, downloads the required setup files, and creates deployment-ready packages.
 
@@ -53,8 +53,12 @@ Path to the Office configuration XML file. If not specified, the script will aut
 The XML should be generated or validated using https://config.office.com to ensure compatibility.
 
 .PARAMETER BasePath
-Root path for all script operations (Packages, Downloads, Logs subdirectories). Defaults to "$env:APPDATA\M365AppsHelper".
-All output, temporary files, and logs will be organized under this base directory.
+Root path for all script operations (Packages, Downloads, Logs subdirectories).
+If not specified the script will choose a sensible per-user default depending on the platform:
+- Windows: "%APPDATA%\M365AppsHelper" (preferred when %APPDATA% is available)
+- macOS: "~/Documents/M365AppsHelper" (visible per-user folder; used when no BasePath is supplied)
+
+The script will create the required subfolders under this path (Packages, Downloads, Logs). If the path is not writable or cannot be created the script will error. You can override the default by supplying `-BasePath` with any writable path. All output, temporary files, and logs will be organized under this base directory.
 
 .PARAMETER SetupUrl
 URL to download the Office setup executable. Defaults to the official Microsoft Office CDN URL.
@@ -86,18 +90,21 @@ Switch parameter to skip creating a zip file of the deployment package. When spe
 .PARAMETER OnlineMode
 Switch to create a package without downloading Office data files. When enabled, the package contains only setup.exe and configuration files (~200MB). When disabled, the full Office data files are downloaded and included (~3-4GB). 
 Unchecked mode requires the Office files to be downloaded during execution, significantly increasing package time and storage requirements.
-Checked mode requires version validation via the Office version API.
+Checked mode requires version validation via the Office version API. OnlineMode requires API access to validate or retrieve Office versions from the configured OfficeVersionUrl. OnlineMode cannot be used together with -NoZip or -SkipAPICheck (these combinations will be rejected by the script).
 
 .PARAMETER SkipAPICheck
 Switch parameter to skip the Office version API validation. Only works if a version is already specified in the XML configuration.
 Use this when performing rapid testing with a pre-validated Office channel and version.
 Warning: Skipping validation may result in download failures if the version is invalid.
+Note: -SkipAPICheck cannot be used with -OnlineMode. If -SkipAPICheck is supplied but the XML does not contain a Version element, the script will fail.
 
 .PARAMETER Win32ContentPrepToolUrl
 URL to download the Microsoft Win32 Content Prep Tool (IntuneWinAppUtil.exe). Used when creating an Intune Win32 package.
 
 .PARAMETER CreateIntuneWin
 Switch to create a .intunewin package for Win32 app deployment using the Microsoft Win32 Content Prep Tool. Cannot be used with the NoZip parameter. Can be used with OnlineMode to generate Intune-ready packages without downloading full Office content.
+
+Important: Creating a .intunewin requires the Microsoft Win32 Content Prep Tool (IntuneWinAppUtil.exe), which is a Windows executable. This operation must be performed on a Windows host (Windows Server/Windows 10/11). When running on non-Windows hosts (macOS/Linux) the script will disable CreateIntuneWin and log a warning; it cannot create .intunewin files on macOS/Linux. CreateIntuneWin is also mutually exclusive with -PMPCCustomApp and with -NoZip. If not explicitly supplied on a Windows host and -PMPCCustomApp is not used, the script may enable CreateIntuneWin by default.
 
 .PARAMETER ApiRetryDelaySeconds
 Delay in seconds between API retry attempts. Defaults to 3 seconds.
@@ -124,7 +131,7 @@ Enterprise deployment with custom paths:
 
 param(
     [string]$ConfigXML,
-    [string]$BasePath = (Join-Path $env:APPDATA 'M365AppsHelper'),
+    [string]$BasePath,
     [ValidatePattern('^https?://.+')]
     [string]$SetupUrl = "https://officecdn.microsoft.com/pr/wsus/setup.exe",
     [ValidatePattern('^https?://.+')]
@@ -146,7 +153,18 @@ param(
     [int]$ApiMaxExtendedAttempts = 10
 )
 
-# Initialize paths
+# Initialize BasePath
+if (-not $BasePath -or [string]::IsNullOrWhiteSpace($BasePath)) {
+    if ($env:APPDATA -and -not [string]::IsNullOrWhiteSpace($env:APPDATA)) {
+        $BasePath = Join-Path $env:APPDATA 'M365AppsHelper'
+    }
+    else {
+    # macOS: use ~/Documents
+        $BasePath = Join-Path (Join-Path $HOME 'Documents') 'M365AppsHelper'
+    }
+}
+
+# Initialize folders
 $OutputPath = Join-Path $BasePath 'Packages'
 $DownloadPath = Join-Path $BasePath 'Downloads'
 $LogFolder = Join-Path $BasePath 'Logs'
@@ -163,12 +181,12 @@ foreach ($path in @($BasePath, $OutputPath, $DownloadPath, $LogFolder)) {
     }
 }
 
-# Standardize default config names (install/uninstall)
+# Default config names
 $defaultConfigNames = @("install", "uninstall")
 $script:DefaultInstallConfigName = "{0}.xml" -f $defaultConfigNames[0]
 $script:DefaultUninstallConfigName = "{0}.xml" -f $defaultConfigNames[1]
 
-# Always use default install config name
+# Default install config name
 $OutputConfigName = $script:DefaultInstallConfigName
 
 if ([string]::IsNullOrWhiteSpace($LogName)) {
@@ -216,9 +234,15 @@ function Write-Log {
 
     $time = Get-Date -Format "HH:mm:ss.ffffff"
     $date = Get-Date -Format "MM-dd-yyyy"
-    $context = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-    
-    $logEntry = "<![LOG[$Message]LOG]!><time=`"$time`" date=`"$date`" component=`"$Component`" context=`"$context`" type=`"$Severity`" thread=`"$PID`" file=`"`">"
+
+    try {
+        $context = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    }
+    catch {
+        try { $context = [System.Environment]::UserName } catch { $context = $env:USER -or $env:USERNAME -or 'Unknown' }
+    }
+
+    $logEntry = "<![LOG[$Message]LOG]!><time=`"$time`" date=`"$date`" component=`"$Component`" context=`"$context`" type=`"$Severity`" thread=`"$PID`" file=```">"
     
     try {
         Add-Content -Path $LogFile -Value $logEntry -Encoding UTF8
@@ -259,7 +283,8 @@ if ($OnlineMode -and $NoZip) {
     $logID = "ParameterValidation"
     
     Write-LogHost "Error: OnlineMode and NoZip parameters cannot be used together." -ForegroundColor Red -Severity 3 -Component $logID
-    Write-LogHost "Note: OnlineMode checks the Office version validity using the OfficeVersionUrl endpoint, it does not download Office files." -ForegroundColor Yellow -Severity 2 -Component $logID
+    Write-LogHost "Explanation: OnlineMode produces a minimal package that contains only the Office setup executable and the configuration XML (it does NOT download the Office payload). The -NoZip switch controls whether a zip archive is created for the full Office payload; when no payload is present, -NoZip has no meaningful effect." -ForegroundColor Yellow -Severity 2 -Component $logID
+    Write-LogHost "If you want a minimal package (setup.exe + XML), run with -OnlineMode alone. If you want the full Office payload and to skip zip creation, omit -OnlineMode and specify -NoZip. If you intended to create a deployable payload for offline distribution, run without -OnlineMode so the script downloads the Office files." -ForegroundColor Yellow -Severity 2 -Component $logID
     exit 1
 }
 
@@ -1169,7 +1194,7 @@ function Write-Log {
         [string]$Component = "PreScript"
     )
 
-    # Construct full log file path
+    # Build full log path
     $fullLogPath = Join-Path $LogPath $LogName
 
     if (-not (Test-Path $LogPath)) {
@@ -1183,12 +1208,18 @@ function Write-Log {
         }
     }
 
-    # Format log entry in CMTrace format
+    # Compose CMTrace log entry
     $time = Get-Date -Format "HH:mm:ss.ffffff"
     $date = Get-Date -Format "MM-dd-yyyy"
-    $context = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-    
-    $logEntry = "<![LOG[$Message]LOG]!><time=`"$time`" date=`"$date`" component=`"$Component`" context=`"$context`" type=`"$Severity`" thread=`"$PID`" file=`"`">"
+    # Get user context (cross-platform)
+    try {
+        $context = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    }
+    catch {
+        try { $context = [System.Environment]::UserName } catch { $context = $env:USER -or $env:USERNAME -or 'Unknown' }
+    }
+
+    $logEntry = "<![LOG[$Message]LOG]!><time=`"$time`" date=`"$date`" component=`"$Component`" context=`"$context`" type=`"$Severity`" thread=`"$PID`" file=```">"
     
     try {
         Add-Content -Path $fullLogPath -Value $logEntry -Encoding UTF8
@@ -1219,7 +1250,7 @@ function Expand-ZipFile {
     }
 }
 
-# Main execution
+# Main execution entry
 try {
     $currentDir = Get-Location
     
@@ -1228,7 +1259,7 @@ try {
     Write-Log ("PowerShell version: {0}" -f $PSVersionTable.PSVersion)
     
     if ($Name) {
-        # Use explicitly specified zip file
+# Use specified zip if provided
         $zipFile = Join-Path $currentDir $Name
         Write-Log ("Using explicitly specified zip file: {0}" -f $Name)
         
@@ -1263,13 +1294,13 @@ try {
     $zipInfo = Get-Item $zipFile
     Write-Log ("Found {0} ({1:N2} MB)" -f $ZipFileName, ($zipInfo.Length / 1MB))
     
-    # Extract Zip contents
+    # Extract zip contents
     $extractResult = Expand-ZipFile -ZipPath $zipFile -DestinationPath $currentDir
     
     if ($extractResult) {
         Write-Log ("Application source files extracted successfully")
         
-        # Count extracted files
+    # Count extracted files
         $extractedFiles = Get-ChildItem -Path $currentDir -File -Recurse | Where-Object { $_.Name -ne $ZipFileName }
         Write-Log ("Extracted {0} files from {1}" -f $extractedFiles.Count, $ZipFileName)
         Write-Log ("Ready for application installation")
@@ -1338,7 +1369,7 @@ function New-DetectionScriptContent {
 `$displayName = "$DisplayName"
 `$minVersion = [version]"$Version"
 
-# Registry paths to search for installed applications
+# Registry paths to check for installed apps
 `$registryPaths = @(
     'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
     'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
@@ -1351,7 +1382,7 @@ try {
         `$items = Get-ItemProperty -Path `$path -ErrorAction SilentlyContinue | Where-Object { `$_.DisplayName }
         
         foreach (`$item in `$items) {
-            # Check if DisplayName matches (support wildcard matching with %)
+            # Match DisplayName (supports % wildcard)
             `$nameMatch = if (`$displayName -match '%') {
                 `$pattern = '^' + [regex]::Escape(`$displayName).Replace('%', '.*') + '$'
                 `$item.DisplayName -match `$pattern
@@ -1361,13 +1392,13 @@ try {
             }
             
             if (`$nameMatch) {
-                # Try to parse the version
+                # Parse version
                 `$installedVersionStr = `$item.DisplayVersion
                 if (`$installedVersionStr) {
                     try {
                         `$installedVersion = [version]`$installedVersionStr
                         
-                        # Check if installed version is greater than or equal to minimum version
+                        # Compare installed vs required version
                         if (`$installedVersion -ge `$minVersion) {
                             Write-Output "Detected: `$(`$item.DisplayName) version `$installedVersionStr (>= `$minVersion)"
                             `$found = `$true
@@ -1375,7 +1406,7 @@ try {
                         }
                     }
                     catch {
-                        # Version parsing failed, skip this entry
+                        # Skip on parse failure
                         continue
                     }
                 }
@@ -1390,7 +1421,7 @@ try {
         exit 0
     }
     else {
-        # No output when not detected - Intune requires silent exit for non-detection
+    # Silent exit when not detected (Intune requirement)
         exit 1
     }
 }
@@ -1640,7 +1671,52 @@ HOW TO USE THIS WIN32 APP PACKAGE:
 Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 ================================================================================
 "@
-        $instructions | Out-File -FilePath $instructionsPath -Encoding UTF8
+    # Manual packaging note for non-Windows hosts (cannot run Intune packer)
+        try {
+            $isWin = $false
+            if (Test-Path Variable:IsWindows) { $isWin = $IsWindows }
+            else { $isWin = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows) }
+        }
+        catch {
+            $isWin = ($env:OS -and $env:OS -match 'Windows')
+        }
+
+        $manualNote = ""
+        if (-not $isWin) {
+            $manualNote = @"
+
+
+================================================================================
+NOTE FOR NON-WINDOWS HOSTS (macOS/Linux)
+================================================================================
+
+This run could not create the Intune Win32 package (.intunewin) because the
+Intune Win32 Content Prep Tool (IntuneWinAppUtil.exe) is a Windows executable.
+To create the .intunewin manually, copy the following files from this output
+folder to a Windows machine and run the Win32 Content Prep Tool there:
+
+ - Office installation files folder: 'Office' (contains the Office payload files)
+ - setup.exe
+ - Install XML: $($AppDetails.XmlFileName)
+ - Uninstall XML: $($AppDetails.XmlUninstallFileName)
+
+Steps to create the .intunewin on a Windows machine:
+ 1) Download the Microsoft Win32 Content Prep Tool (IntuneWinAppUtil.exe).
+    Official documentation: https://learn.microsoft.com/mem/intune/apps/apps-win32-app-management
+ 2) Place IntuneWinAppUtil.exe on the Windows machine.
+ 3) Open an elevated command prompt and run:
+
+    IntuneWinAppUtil.exe -c "<path-to-source-folder>" -s "setup.exe" -o "<path-to-output-folder>"
+
+    Example:
+    IntuneWinAppUtil.exe -c "C:\path\to\output\sessionfolder" -s "setup.exe" -o "C:\path\to\output\sessionfolder\intunepkg"
+
+================================================================================
+"@
+        }
+
+        $finalInstructions = $instructions + $manualNote
+        $finalInstructions | Out-File -FilePath $instructionsPath -Encoding UTF8
         Write-LogHost ("Win32 app instructions exported to: {0}" -f $instructionsPath) -ForegroundColor Green -Component $LogID
         return $instructionsPath
     }
@@ -2188,6 +2264,37 @@ function Invoke-Main {
     Write-Log ("Parameters: ConfigXml='{0}', StagingDir='{1}', OutputDir='{2}', LogFile='{3}', NoZip={4}, OnlineMode={5}, SkipAPICheck={6}, CreateIntuneWin={7}" -f $ConfigXml, $StagingDir, $OutputDir, $LogFile, $NoZip, $OnlineMode, $SkipAPICheck, $CreateIntuneWin) -Component $LogID
     Write-LogHost ("CreateIntuneWin requested: {0}" -f $CreateIntuneWin) -Component $LogID
 
+    # If running on non-Windows hosts, CreateIntuneWin cannot run (IntuneWinAppUtil.exe is Windows-only)
+    try {
+        $isWin = $false
+        if (Test-Path Variable:IsWindows) { $isWin = $IsWindows }
+        else { $isWin = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows) }
+    }
+    catch {
+        $isWin = ($env:OS -and $env:OS -match 'Windows')
+    }
+
+    if ($CreateIntuneWin -and -not $isWin) {
+        Write-LogHost "CreateIntuneWin requested but the current host is not Windows; skipping CreateIntuneWin (not supported on macOS/Linux)." -ForegroundColor Yellow -Component $LogID -Severity 2
+        Write-Log "CreateIntuneWin skipped on non-Windows host" -Component $LogID -Severity 2
+        $CreateIntuneWin = $false
+    }
+
+    try {
+        $isMac = $false
+        if (Test-Path Variable:IsMacOS) { $isMac = $IsMacOS }
+        else { $isMac = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::OSX) }
+    }
+    catch {
+        $isMac = ($env:OSTYPE -and $env:OSTYPE -match 'darwin') -or ($env:OS -and $env:OS -match 'Darwin')
+    }
+
+    if ($isMac -and $CreateIntuneWin) {
+        Write-LogHost "Host detected as macOS; CreateIntuneWin is not supported and will be disabled." -ForegroundColor Yellow -Component $LogID
+        Write-Log "CreateIntuneWin disabled on macOS" -Component $LogID -Severity 2
+        $CreateIntuneWin = $false
+    }
+
     # Default behavior: enable Intune Win32 packaging unless a Patch My PC custom app is selected
     if ($PMPCCustomApp) {
         if ($CreateIntuneWin) {
@@ -2197,8 +2304,13 @@ function Invoke-Main {
     }
     else {
         if (-not $CreateIntuneWin) {
-            Write-LogHost ("PMPCCustomApp not selected - enabling CreateIntuneWin by default") -ForegroundColor Yellow -Component $LogID
-            $CreateIntuneWin = $true
+            if ($isWin) {
+                Write-LogHost ("PMPCCustomApp not selected - enabling CreateIntuneWin by default") -ForegroundColor Yellow -Component $LogID
+                $CreateIntuneWin = $true
+            }
+            else {
+                Write-LogHost ("PMPCCustomApp not selected but host is not Windows; CreateIntuneWin will remain disabled") -ForegroundColor Yellow -Component $LogID
+            }
         }
     }
     Write-LogHost ("CreateIntuneWin effective: {0}" -f $CreateIntuneWin) -Component $LogID
