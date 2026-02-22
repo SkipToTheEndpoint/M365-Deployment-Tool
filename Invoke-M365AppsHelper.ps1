@@ -276,18 +276,6 @@ function Write-LogHost {
     Write-Host $Message -ForegroundColor $ForegroundColor
 }
 
-
-if ($OnlineMode -and $NoZip) {
-
-    $script:LogPath = $LogName
-    $logID = "ParameterValidation"
-    
-    Write-LogHost "Error: OnlineMode and NoZip parameters cannot be used together." -ForegroundColor Red -Severity 3 -Component $logID
-    Write-LogHost "Explanation: OnlineMode produces a minimal package that contains only the Office setup executable and the configuration XML (it does NOT download the Office payload). The -NoZip switch controls whether a zip archive is created for the full Office payload; when no payload is present, -NoZip has no meaningful effect." -ForegroundColor Yellow -Severity 2 -Component $logID
-    Write-LogHost "If you want a minimal package (setup.exe + XML), run with -OnlineMode alone. If you want the full Office payload and to skip zip creation, omit -OnlineMode and specify -NoZip. If you intended to create a deployable payload for offline distribution, run without -OnlineMode so the script downloads the Office files." -ForegroundColor Yellow -Severity 2 -Component $logID
-    exit 1
-}
-
 if ($CreateIntuneWin -and $PMPCCustomApp) {
 
     $script:LogPath = $LogName
@@ -296,17 +284,6 @@ if ($CreateIntuneWin -and $PMPCCustomApp) {
     Write-LogHost "Error: CreateIntuneWin and PMPCCustomApp parameters cannot be used together." -ForegroundColor Red -Severity 3 -Component $logID
     Write-LogHost "Note: CreateIntuneWin is for Intune Win32 deployments, while PMPCCustomApp is for Patch My PC Cloud. These are mutually exclusive deployment methods." -ForegroundColor Yellow -Severity 2 -Component $logID
     exit 1
-}
-
-if ($CreateIntuneWin -and $NoZip) {
-    # Only error if PMPCCustomApp is also passed
-    if ($PMPCCustomApp) {
-        $script:LogPath = $LogName
-        $logID = "ParameterValidation"
-        Write-LogHost "Error: CreateIntuneWin cannot be used with NoZip parameter when PMPCCustomApp is also used." -ForegroundColor Red -Severity 3 -Component $logID
-        Write-LogHost "Note: Creating an Intune Win32 package requires a zip archive of the Office content." -ForegroundColor Yellow -Severity 2 -Component $logID
-        exit 1
-    }
 }
 
 if ($OnlineMode -and $SkipAPICheck) {
