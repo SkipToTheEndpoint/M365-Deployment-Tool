@@ -315,8 +315,9 @@ async function executeDeployment() {
   const createIntuneWin = document.getElementById('createIntuneWin').checked;
   
   let noZip = document.getElementById('noZip').checked;
-  if (!pmpcCustomApp || onlineMode) {
-    noZip = false;
+  // If not using pmpcCustomApp, force noZip true
+  if (!pmpcCustomApp) {
+    noZip = true;
   }
   
   console.log('[Frontend] Sending to server:');

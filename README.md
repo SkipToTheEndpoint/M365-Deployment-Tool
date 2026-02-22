@@ -6,7 +6,7 @@ A simple PowerShell-based tool with optional GUI to build Microsoft 365 deployme
 
 ## Requirements
 
-- PowerShell 5.1 or later
+- PowerShell 7 or later
 
 To use the optional GUI:
 
@@ -21,35 +21,21 @@ To use the optional GUI:
 3. Run:
 
 ```powershell
-.\Invoke-M365AppsHelper.ps1 -ConfigXML .\samples\sample1.xml -OnlineMode
+.\Invoke-M365AppsHelper.ps1 -ConfigXML .\samples\sample.xml -OnlineMode
 ```
 
 This will create a lightweight Microsoft 365 Apps deployment package.
+
 
 ### Online Mode vs Full Download
 
 - `-OnlineMode` creates a lightweight stub package (just `setup.exe` and metadata). The Office binaries are downloaded during install.
 - If `-OnlineMode` is not passed, the script downloads **all Office data files** into the package. This can be preferred for fully offline installs, but results in **very large downloads** (multi-GB).
-- For PMPC custom apps without `-OnlineMode`, Office data files will be compressed automatically and the script will also generate a **PreScript** to extract them during install. Use the `-NoZip` parameter if you do not want to compress the office data files.
+- **Zip compression is only performed when using `-PMPCCustomApp`**. In this case, Office data files will be compressed by default and a **PreScript** will be generated to extract them during install. Use the `-NoZip` parameter with `-PMPCCustomApp` if you do not want to compress the Office data files.
+- For all other scenarios, zip compression is never performed and the Office files are included as a folder.
 
-> ⚠️ **Note:** The sample XML is for example purposes only.  
+> ⚠️ **Note:** The sample XML's are for example purposes only.  
 > You should generate your own configuration at [https://config.office.com](https://config.office.com) and export the XML.
-
-### What the sample installs:
-
-- **Microsoft 365 Apps for Enterprise (EEA No Teams)**
-- **Visio Professional**
-- Architecture: **64-bit**
-- Update Channel: **Monthly Enterprise**
-- Languages: `en-gb`, `fi-fi`, and `MatchPreviousMSI`
-- Excludes: **OneDrive for Business (Groove)** and **Skype for Business (Lync)**
-- MSI Removal: Enabled (removes previous MSI-based Office)
-- Updates: Enabled
-- Display: **Silent install**, no UI (`Display Level="None"`)
-- Accept EULA: **Not accepted automatically**
-
-> `-OnlineMode` creates a stub-based package (just `setup.exe` and metadata).  
-> If not passed, the script downloads **all Office binaries** and packages them.
 
 ---
 
@@ -168,22 +154,23 @@ Default: https://raw.githubusercontent.com/microsoft/Microsoft-Win32-Content-Pre
 Incompatible with: None
 ```
 
+
 **CreateIntuneWin**
 Generate a `.intunewin` package (non-PMPC custom app).
 ```
 Type: Switch
 Required: False
 Default: False
-Incompatible with: NoZip, PMPCCustomApp
+Incompatible with: PMPCCustomApp
 ```
 
 **NoZip**
-Skip creating `Office.zip` when Office content is downloaded.
+Skip creating `Office.zip` when Office content is downloaded. **Only relevant when using `-PMPCCustomApp`**. For all other scenarios, zip compression is never performed and this parameter is always true.
 ```
 Type: Switch
 Required: False
-Default: False
-Incompatible with: CreateIntuneWin
+Default: True (unless using PMPCCustomApp, where it defaults to False)
+Incompatible with: None
 ```
 
 **OnlineMode**
@@ -205,7 +192,7 @@ Incompatible with: None
 ```
 
 **PMPCCustomApp**
-Generate PMPC custom app output instead of standard Win32 output.
+Generate PMPC custom app output instead of standard Win32 output. Enables zip compression by default unless `-NoZip` is specified.
 ```
 Type: Switch
 Required: False
