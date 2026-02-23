@@ -1609,33 +1609,34 @@ HOW TO USE THIS WIN32 APP PACKAGE:
 ================================================================================
 
 1. UPLOAD TO INTUNE:
-   a) Sign in to the Microsoft Intune admin center
-   b) Navigate to: Apps > Windows apps > + Create
-   c) Select "Windows app (Win32)" from the app type list
-   d) Click "Select" to proceed
-   e) Upload the .intunewin file by clicking "Select app package file"
-   f) Browse to and select: $IntunewinFileName
+    a) Sign in to the Microsoft Intune admin center
+    b) Navigate to: Apps > Windows apps > + Create
+    c) Select "Windows app (Win32)" from the app type list
+    d) Click "Select" to proceed
+    e) Upload the .intunewin file by clicking "Select app package file"
+    f) Browse to and select: $IntunewinFileName
 
 2. CONFIGURE APP PROPERTIES:
-   a) Fill in the required app information (Use information from above e.g. Name, Description, Publisher, etc.)
-   b) Upload the application icon: Microsoft.png
-   c) Click "Next" to proceed
-   d) Set the install and uninstall commands as follows:
+    a) Fill in the required app information (Use information from above e.g. Name, Description, Publisher, etc.)
+    b) Upload the application icon: Microsoft.png
+    c) Click "Next" to proceed
+    d) Set the install and uninstall commands as follows:
       - Install command: setup.exe /configure $($AppDetails.XmlFileName)
       - Uninstall command: setup.exe /configure $($AppDetails.XmlUninstallFileName)
-    e) Set the install behavior to "System" and architecture to "$($AppDetails.Architecture)-bit"
-    f) Complete any additional app configuration as needed
+    e) Set "Allow available uninstall" to "Yes" (Optional)
+    f) Set the install behavior to "System" and architecture to "$($AppDetails.Architecture)-bit"
+    g) Complete any additional app configuration as needed
 
 3. CONFIGURE DETECTION RULES:
-   a) Click "Next" to proceed to the Requirements section, configure as needed
-   b) Click "Next" to proceed to the Detection rules section
-   c) Select "Use a custom detection script" from the Rules format dropdown
-   d) Click "Select" to upload the detection script
-   e) Browse to and select: Detect-OfficeInstallation.ps1
-   f) Set "Run script as 32-bit process on 64-bit clients" to "No"
-   g) Set "Enforce script signature check" to "No" unless you have signed the script after it was generated
-   h) Click "OK" to save the detection rule
-   i) Click "Next" to proceed
+    a) Click "Next" to proceed to the Requirements section, configure as needed
+    b) Click "Next" to proceed to the Detection rules section
+    c) Select "Use a custom detection script" from the Rules format dropdown
+    d) Click "Select" to upload the detection script
+    e) Browse to and select: Detect-OfficeInstallation.ps1
+    f) Set "Run script as 32-bit process on 64-bit clients" to "No"
+    g) Set "Enforce script signature check" to "No" unless you have signed the script after it was generated
+    h) Click "OK" to save the detection rule
+    i) Click "Next" to proceed
 
    NOTE: The detection script searches HKLM registry for Office installations
    matching DisplayName "$($AppDetails.AppsAndFeaturesName)" with version >= $($AppDetails.Version).
