@@ -1,7 +1,13 @@
-<Configuration ID="21c7ee01-2518-4c9f-bfa2-3489741287fd">
+<Configuration ID="906f6e3f-2242-4780-ad39-f684d9a36e47">
   <Add OfficeClientEdition="64" Channel="Current">
     <Product ID="O365ProPlusRetail">
-      <Language ID="en-us" />
+      <Language ID="en-gb" />
+      <Language ID="fi-fi" />
+      <ExcludeApp ID="Groove" />
+      <ExcludeApp ID="Lync" />
+    </Product>
+    <Product ID="VisioProRetail">
+      <Language ID="en-gb" />
       <Language ID="fi-fi" />
       <ExcludeApp ID="Groove" />
       <ExcludeApp ID="Lync" />

@@ -159,7 +159,7 @@ if (-not $BasePath -or [string]::IsNullOrWhiteSpace($BasePath)) {
         $BasePath = Join-Path $env:APPDATA 'M365AppsHelper'
     }
     else {
-    # macOS: use ~/Documents
+        # macOS: use ~/Documents
         $BasePath = Join-Path (Join-Path $HOME 'Documents') 'M365AppsHelper'
     }
 }
@@ -1470,12 +1470,6 @@ function New-PatchMyPCInstructions {
 2. Find the Custom App, select it and click "Deploy"
 "@
 
-        $conflictingProcessNote = @"
-
-NOTE: If you also want to leverage the "Conflicting processes" feature, add the processes listed in the JSON in this output folder. The entry in the JSON looks similar to the list below:-
-
-$($CustomApp.ConflictingProcesses)
-"@
 
         if ($hasOfficeZip) {
             $deploySection = @"
@@ -1491,7 +1485,6 @@ Scripts > Pre-Install > Add > Import > PreScript.ps1
 
 4. Click "Save"
 5. Complete the rest of the deployment as desired
-$conflictingProcessNote
 "@
         }
         else {
@@ -1534,6 +1527,10 @@ Language: $($CustomApp.Language)
 Apps & Features Name: $($CustomApp.AppsAndFeaturesName)
 Conflicting Processes: $($CustomApp.ConflictingProcesses)
 Silent Install Parameters: $($CustomApp.SilentInstallParameters)
+Uninstall Command: Auto Discovered
+Intune Notes: $($CustomApp.Notes)
+Information URL: https://www.microsoft.com/en-gb/microsoft-365/products-apps-services
+Privacy URL: https://learn.microsoft.com/en-us/microsoft-365-apps/privacy/overview-privacy-controls
 
 === Detection Rules ===
 Patch My PC Default (Recommended)
@@ -1577,6 +1574,8 @@ Name:                   $($AppDetails.AppName)
 Description:            $($AppDetails.Description)
 Publisher:              $($AppDetails.Vendor)
 App Version:            $($AppDetails.Version)
+Information URL: https://www.microsoft.com/en-gb/microsoft-365/products-apps-services
+Privacy URL: https://learn.microsoft.com/en-us/microsoft-365-apps/privacy/overview-privacy-controls
 Notes:                  $($AppDetails.Notes)
 Install Command:        setup.exe /configure $($AppDetails.XmlFileName)
 Uninstall Command:      setup.exe /configure $($AppDetails.XmlUninstallFileName)
@@ -1618,7 +1617,7 @@ HOW TO USE THIS WIN32 APP PACKAGE:
    f) Browse to and select: $IntunewinFileName
 
 2. CONFIGURE APP PROPERTIES:
-   a) Fill in the required app information (Name, Description, Publisher, etc.)
+   a) Fill in the required app information (Use information from above e.g. Name, Description, Publisher, etc.)
    b) Upload the application icon: Microsoft.png
    c) Click "Next" to proceed
    d) Set the install and uninstall commands as follows:
@@ -1649,7 +1648,7 @@ HOW TO USE THIS WIN32 APP PACKAGE:
 Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 ================================================================================
 "@
-    # Manual packaging note for non-Windows hosts (cannot run Intune packer)
+        # Manual packaging note for non-Windows hosts (cannot run Intune packer)
         try {
             $isWin = $false
             if (Test-Path Variable:IsWindows) { $isWin = $IsWindows }
@@ -1937,6 +1936,10 @@ function New-PatchMyPCCustomApp {
         if ($addonNames.Count -gt 0) {
             $appNameStr += " + " + ($addonNames -join " + ")
         }
+        # Always append language to app name for OnlineMode or single language
+        if ($mainLangDisplayName) {
+            $appNameStr += " - $mainLangDisplayName"
+        }
         
         $languages = $productNodes | ForEach-Object { @($_.Language) | ForEach-Object { $_.ID } }
         $languages = $languages | Where-Object { $_ -and $_ -notin @("MatchPreviousMSI") } | Select-Object -Unique
@@ -1961,9 +1964,12 @@ function New-PatchMyPCCustomApp {
         
         $notesLanguage = $null
         if ($languages.Count -gt 1) {
-            $langList = $languages -join ", "
-            $notesLanguage = Get-LocaleDisplayName -LocaleCodes $langList -LogID $LogID
-            $notesLanguage = $notesLanguage -join ", "
+            # Exclude the main language from additional languages
+            $additionalLangs = $languages | Where-Object { $_ -ne $mainLang }
+            if ($additionalLangs) {
+                $notesLanguage = Get-LocaleDisplayName -LocaleCodes ($additionalLangs -join ",") -LogID $LogID
+                $notesLanguage = $notesLanguage -join ", "
+            }
         }
 
         $displayNameStr = Get-OfficeDisplayName -AppName $mainAppName -Language $mainLang -LogID $LogID
@@ -1973,7 +1979,8 @@ function New-PatchMyPCCustomApp {
         $uninstallXmlFileName = New-OfficeUninstallXml -SourceXmlPath $xmlPath -OutputPath $OutputPath -LogID $LogID
 
         $customApp = [PSCustomObject]@{
-            AppName                 = $appNameStr
+            # Always append language to AppName for Win32App output
+            AppName                 = "$appNameStr - $mainLang"
             AppIcon                 = "Microsoft.png"
             Vendor                  = "Microsoft"
             Description             = "Office provides always-up-to-date versions of Word, Excel, PowerPoint, Outlook, OneNote, and more. It delivers the familiar Office experience across PCs, Macs, tablets, and mobile devices with seamless access to files in OneDrive and SharePoint."
@@ -1990,7 +1997,13 @@ function New-PatchMyPCCustomApp {
         }
 
         if ($notesLanguage) {
-            $customApp.Notes += ". Additional Languages: {0}" -f $notesLanguage
+            $customApp.Notes += ". Language: $mainLangDisplayName"
+            if ($notesLanguage) {
+                $customApp.Notes += ". Additional Languages: {0}" -f $notesLanguage
+            }
+        }
+        elseif ($mainLangDisplayName) {
+            $customApp.Notes += ". Language: $mainLangDisplayName"
         }
         if ($mainLangDisplayName -eq "MatchOS" ) {
             $customApp.Notes += ". Detection Information: As the language is set to 'MatchOS', we cannot use an exact Display Name for detection. The Apps & Features name contain a '%' wildcard to match any language."
@@ -2029,6 +2042,9 @@ function Show-PatchMyPCCustomAppInfo {
     Write-Host ("Apps & Features Name: {0}" -f $CustomApp.AppsAndFeaturesName)
     Write-Host ("Conflicting Processes: {0}" -f $CustomApp.ConflictingProcesses)
     Write-Host ("Silent Install Parameters: /configure {0}" -f $CustomApp.XmlFileName)
+    Write-Host "Uninstall Command: Auto Discovered"
+    Write-Host "Information URL: https://www.microsoft.com/en-gb/microsoft-365/products-apps-services"
+    Write-Host "Privacy URL: https://learn.microsoft.com/en-us/microsoft-365-apps/privacy/overview-privacy-controls"
     Write-Host ""
     Write-Host "================================================================" -ForegroundColor Cyan
     Write-Host ""
@@ -2691,7 +2707,8 @@ function Invoke-Main {
     if ($PMPCCustomApp) {
         # Compress by default unless NoZip is passed
         $modeSuffix = if ($NoZip) { "OfflineMode" } else { "OfflineModeCompressed" }
-    } else {
+    }
+    else {
         # Never do zip compression if not PMPCCustomApp
         $modeSuffix = "OfflineMode"
         $NoZip = $true
@@ -2976,7 +2993,8 @@ function Invoke-Main {
                 $relativePath = $file.FullName.Replace($sessionPath, '').TrimStart('\')
                 Write-Host "    $relativePath" -ForegroundColor Cyan
             }
-        } else {
+        }
+        else {
             Write-LogHost ("Office folder not found in {0}" -f $outputOfficeDir) -ForegroundColor Cyan -Severity 2 -Component $LogId
         }
 
@@ -2986,7 +3004,8 @@ function Invoke-Main {
             try {
                 Remove-Item -Path $sourceOfficeDir -Recurse -Force -ErrorAction Stop
                 Write-LogHost ("Cleaned up Office data files from downloads folder: {0}" -f $sourceOfficeDir) -ForegroundColor Yellow -Component $LogId
-            } catch {
+            }
+            catch {
                 Write-LogHost ("Failed to clean up Office data files from downloads folder: {0}" -f $_.Exception.Message) -ForegroundColor Red -Severity 2 -Component $LogId
             }
         }
