@@ -1325,8 +1325,31 @@ function New-DetectionScriptContent {
         [Parameter(Mandatory = $true)]
         [string]$DisplayName,
         [Parameter(Mandatory = $true)]
-        [string]$Version
+        [string]$Version,
+        [Parameter(Mandatory = $false)]
+        [string]$Channel
     )
+
+    # Map XML channel names to CDNBaseURL values
+    $channelCDNMap = @{
+        'BetaChannel'       = 'http://officecdn.microsoft.com/pr/5440fd1f-7ecb-4221-8110-145efaa6372f'
+        'CurrentPreview'    = 'http://officecdn.microsoft.com/pr/64256afe-f5d9-4f86-8936-8840a6a4f5be'
+        'Current'           = 'http://officecdn.microsoft.com/pr/492350f6-3a01-4f97-b9c0-c7c6ddf67d60'
+        'MonthlyEnterprise' = 'http://officecdn.microsoft.com/pr/55336b82-a18d-4dd6-b5f6-9e5095c314a6'
+        'SemiAnnualPreview' = 'http://officecdn.microsoft.com/pr/b8f9b850-328d-4355-9145-c59439a0c4cf'
+        'SemiAnnual'        = 'http://officecdn.microsoft.com/pr/7ffbc6bf-bc32-4f92-8982-f9dd17fd3114'
+    }
+
+    $expectedCDN = if ($Channel -and $channelCDNMap.ContainsKey($Channel)) { $channelCDNMap[$Channel] } else { '' }
+    $channelDisplayName = switch ($Channel) {
+        'BetaChannel'       { 'Beta Channel' }
+        'CurrentPreview'    { 'Current Channel (Preview)' }
+        'Current'           { 'Current Channel' }
+        'MonthlyEnterprise' { 'Monthly Enterprise Channel' }
+        'SemiAnnualPreview' { 'Semi-Annual Enterprise Channel (Preview)' }
+        'SemiAnnual'        { 'Semi-Annual Enterprise Channel' }
+        default             { $Channel }
+    }
     
     return @"
 <#
@@ -1335,17 +1358,20 @@ function New-DetectionScriptContent {
 
 .DESCRIPTION
     This script searches the Windows registry for Office installations matching
-    the specified DisplayName and verifies the installed version meets minimum requirements.
+    the specified DisplayName, verifies the installed version meets minimum requirements,
+    and validates the Office update channel via the CDNBaseURL registry value.
     Returns exit code 0 if detected, 1 if not detected.
 
 .NOTES
     Detection Method: Registry-based
     DisplayName: $DisplayName
     Minimum Version: $Version
+    Expected Channel: $channelDisplayName
 #>
 
 `$displayName = "$DisplayName"
 `$minVersion = [version]"$Version"
+`$expectedCDNBaseURL = "$expectedCDN"
 
 # Registry paths to check for installed apps
 `$registryPaths = @(
@@ -1395,6 +1421,16 @@ try {
     }
     
     if (`$found) {
+        # Check update channel via CDNBaseURL registry value
+        if (`$expectedCDNBaseURL) {
+            `$cdnRegPath = 'HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration'
+            `$cdnValue = (Get-ItemProperty -Path `$cdnRegPath -Name 'CDNBaseUrl' -ErrorAction SilentlyContinue).CDNBaseUrl
+            if (`$cdnValue -ne `$expectedCDNBaseURL) {
+                Write-Output "Channel mismatch: Expected '`$expectedCDNBaseURL' but found '`$cdnValue'"
+                exit 1
+            }
+            Write-Output "Channel check passed: `$cdnValue"
+        }
         Write-Output "Detected: Office installation meets requirements"
         exit 0
     }
@@ -1420,12 +1456,14 @@ function New-DetectionScript {
         [string]$DisplayName,
         [Parameter(Mandatory = $true)]
         [string]$Version,
+        [Parameter(Mandatory = $false)]
+        [string]$Channel,
         [string]$LogID = $($MyInvocation.MyCommand).Name
     )
     
     try {
         $detectionScriptPath = Join-Path $OutputPath "Detect-OfficeInstallation.ps1"
-        $detectionScriptContent = New-DetectionScriptContent -DisplayName $DisplayName -Version $Version
+        $detectionScriptContent = New-DetectionScriptContent -DisplayName $DisplayName -Version $Version -Channel $Channel
         $detectionScriptContent | Out-File -FilePath $detectionScriptPath -Encoding UTF8 -Force
         Write-LogHost "Generated Detect-OfficeInstallation.ps1 for Win32 app detection" -ForegroundColor Green -Component $LogID
         
@@ -2622,7 +2660,7 @@ function Invoke-Main {
                 $intunewinFile = if ($CreateIntuneWin) { "setup.intunewin" } else { "[intunewin file]" }
                 
                 # Generate detection script
-                New-DetectionScript -OutputPath $sessionPath -DisplayName $customApp.AppsAndFeaturesName -Version $customApp.Version -LogID $LogID
+                New-DetectionScript -OutputPath $sessionPath -DisplayName $customApp.AppsAndFeaturesName -Version $customApp.Version -Channel $configInfo.Channel -LogID $LogID
                 
                 New-Win32AppInstructions -OutputPath $sessionPath -IntunewinFileName $intunewinFile -AppDetails $customApp -LogID $LogID
             }
@@ -2915,7 +2953,7 @@ function Invoke-Main {
                     $intunewinFile = if ($CreateIntuneWin) { "Microsoft365Apps.intunewin" } else { "[intunewin file]" }
                     
                     # Generate detection script
-                    New-DetectionScript -OutputPath $sessionPath -DisplayName $customApp.AppsAndFeaturesName -Version $customApp.Version -LogID $LogId
+                    New-DetectionScript -OutputPath $sessionPath -DisplayName $customApp.AppsAndFeaturesName -Version $customApp.Version -Channel $configInfo.Channel -LogID $LogId
                     
                     New-Win32AppInstructions -OutputPath $sessionPath -IntunewinFileName $intunewinFile -AppDetails $customApp -LogID $LogId
                 }
