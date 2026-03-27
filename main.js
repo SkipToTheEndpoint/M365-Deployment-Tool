@@ -1,6 +1,5 @@
 ﻿const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
-const isDev = require('electron-is-dev');
 const { spawn } = require('child_process');
 const fs = require('fs');
 
@@ -32,7 +31,6 @@ const createWindow = async () => {
     maxHeight: 1080,
     webPreferences: {
       contextIsolation: true,
-      enableRemoteModule: false,
       nodeIntegration: false,
       preload: path.join(__dirname, 'preload.js')
     },
